@@ -1,4 +1,4 @@
-def runLSTM_1D_1S (df, target = 'Close', window = 10, model='New', File = 'undefined', train_split = 0.8):
+def runLSTM_1D_1S (df, target = 'Close', window = 10, model='New', filename = 'undefined', train_split = 0.8):
 
     #Import libraries
 
@@ -48,9 +48,8 @@ def runLSTM_1D_1S (df, target = 'Close', window = 10, model='New', File = 'undef
 
     # Create X_Predict
     X_Predict = []
-    X_Predict.append(X.values[len(X) - window + 1:, :-1])
+    X_Predict.append(X.values[len(X) - window:, ])
     X_Predict = np.array(X_Predict)
-
 
     if model == 'New':
         #Build the model
@@ -72,18 +71,12 @@ def runLSTM_1D_1S (df, target = 'Close', window = 10, model='New', File = 'undef
         lstm.fit(X_train, y_train, epochs=25, batch_size=5, verbose=1, shuffle=False)
 
         # Save trained model (pickle) and add date to file name
-        import pickle
-        import datetime
-        
-        now = datetime.datetime.now()
-        now = now.strftime("%Y-%m-%d %H:%M")
-        filename = 'LSTM_' + File + '.sav'
-        pickle.dump(lstm, open('../models/'+filename))
+        lstm.save('../models/' + filename + '.h5')
     
     else:
         # load model (pickle)
-        import pickle
-        lstm = pickle.load(open(model, 'rb'))
+        lstm = keras.models.load_model('../models/' + model)
+        
 
     # Test model
     y_pred = lstm.predict(X_test)
