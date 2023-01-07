@@ -1,4 +1,4 @@
-def runLSTM_1D_1S (df, target = 'Close', window = 10, model='New', filename = 'undefined', train_split = 0.8):
+def runLSTM_1D_1S (df, target = 'Close', window = 10, filename = 'undefined', train_split = 0.8):
 
     #Import libraries
 
@@ -51,7 +51,17 @@ def runLSTM_1D_1S (df, target = 'Close', window = 10, model='New', filename = 'u
     X_Predict.append(X.values[len(X) - window:, ])
     X_Predict = np.array(X_Predict)
 
-    if model == 'New':
+    # print whether X_Test and X_Predict have NaN values
+    print('X_Test NaN: ', np.isnan(X_test).any())
+    print('X_Predict NaN: ', np.isnan(X_Predict).any())
+
+
+    #Check to see if we already have a trained model URL=../models/ + filename + '.h5'
+    fileExists = os.path.isfile('../models/' + filename + '.h5')
+
+    # If we don't have a trained model, train one
+    if fileExists == False or filename == 'undefined':
+
         #Build the model
         lstm = Sequential()
         lstm.add(LSTM(120, activation='relu', return_sequences=True, input_shape=(X_train.shape[1], X_train.shape[2])))
@@ -75,7 +85,7 @@ def runLSTM_1D_1S (df, target = 'Close', window = 10, model='New', filename = 'u
     
     else:
         # load model (pickle)
-        lstm = keras.models.load_model('../models/' + model)
+        lstm = keras.models.load_model('../models/' + filename + '.h5')
         
 
     # Test model
@@ -103,6 +113,10 @@ def runLSTM_1D_1S (df, target = 'Close', window = 10, model='New', filename = 'u
     y_test_unscaled = y_test_unscaled[:,0]
     y_pred_unscaled = y_pred_unscaled[:,0] 
     y_pred_future_unscaled = y_pred_future_unscaled[:,0]
+
+    #print whether y_test_unscaled and y_pred_unscaled have NaN values
+    print('y_test_unscaled NaN: ', np.isnan(y_test_unscaled).any())
+    print('y_pred_unscaled NaN: ', np.isnan(y_pred_unscaled).any())
 
     rmse = np.sqrt(mean_squared_error(y_test_unscaled, y_pred_unscaled))
 
