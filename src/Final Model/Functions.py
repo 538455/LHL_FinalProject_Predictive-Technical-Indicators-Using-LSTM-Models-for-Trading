@@ -314,31 +314,31 @@ def getPredictions(df):
     # Predict Close
     print('Predicting Close...')
     true, test, pred, rmse = newLSTM(df, target = 'Close', window = 20, train_split = 0.8)
-    df = addPredictions(df, true, test, pred, rmse, 'Close')
+    df = addPredictions(df, true, test, rmse, 'Close')
     Predictions = addFuturePredictions(Predictions, pred, rmse, 'Close', symbol)
     
     # Predict High
     print('Predicting High...')
     true, test, pred, rmse = newLSTM(df, target = 'High', window = 20, train_split = 0.8)
-    df = addPredictions(df, true, test, pred, rmse, 'High')
+    df = addPredictions(df, true, test, rmse, 'High')
     Predictions = addFuturePredictions(Predictions, pred, rmse, 'High', symbol)
 
     # Predict Low
     print('Predicting Low...')
     true, test, pred, rmse = newLSTM(df, target = 'Low', window = 20, train_split = 0.8)
-    df = addPredictions(df, true, test, pred, rmse, 'Low')
+    df = addPredictions(df, true, test, pred, 'Low')
     Predictions = addFuturePredictions(Predictions, pred, rmse, 'Low', symbol)
     
     # Predict Open
     print('Predicting Open...')
     true, test, pred, rmse = newLSTM(df, target = 'Open', window = 20, train_split = 0.8)
-    df = addPredictions(df, true, test, pred, rmse, 'Open')
+    df = addPredictions(df, true, test, pred, 'Open')
     Predictions = addFuturePredictions(Predictions, pred, rmse, 'Open', symbol)
 
     # Predict Median_Price
     print('Predicting Median_Price...')
     true, test, pred, rmse = newLSTM(df, target = 'Median_Price', window = 20, train_split = 0.8)
-    df = addPredictions(df, true, test, pred, rmse, 'Median_Price')
+    df = addPredictions(df, true, test, pred, 'Median_Price')
     Predictions = addFuturePredictions(Predictions, pred, rmse, 'Median_Price', symbol)
 
     return df, Predictions
