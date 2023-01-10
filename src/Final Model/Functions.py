@@ -395,7 +395,6 @@ def formatPredictions(Ticker_pred):
 
     return Ticker_pred
 
-
 def plotlyGraph(target, Ticker_pred, Ticker_Future, ticker):
     import plotly.graph_objects as go
     
