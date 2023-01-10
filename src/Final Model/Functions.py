@@ -45,9 +45,12 @@ def featureEngineering(df):
     df['Low_Change'] = df['Low'].pct_change()
     df['Volume_Change'] = df['Volume'].pct_change() / 100 # Dividing by 100 as we will not be scaling the data
     
-
     #drop dividends and splits
     df.drop(['Dividends', 'Stock Splits'], axis=1, inplace=True)
+
+    # Drop rows where Open and Close are both 0 (halted trading)
+    df2 = df[(df['Open'] != 0) & (df['Close'] != 0)]    
+    df = df2.copy() # Doing it this way so we don't get a warning saying we're setting a value on a copy of a slice from a dataframe
 
     ## Feature Engineering using TA Library
     #import ta library
@@ -190,7 +193,12 @@ def newLSTM (df, target = 'Close', window = 20, train_split = 0.8):
             # In order to increase the accuracy of our model, we will be normalizing the data of every window by the last value of the window. This will result in the last value of the window being 1.0 and the predictions will be a percentage change from the last value of the window. This will also help the model to learn the trend of the stock better.
             
             # Get the last value of the window
-            CentralValue = data[i + n_steps -1 ,-1] 
+            CentralValue = data[i + n_steps -1 ,-1]
+
+            # Encountered a CentralValue of 0, but noticed later that the stock was halted. I prefer to remove these days during Feature Engineering, but I will leave this here in case I run into issues in the future
+            # if CentralValue == 0:
+            #     CentralValue = 1
+            #     print('CentralValue = 0', i)
             
             # Get the values of the predicted value in window and divide by the last value of the window
             temp = data[i:i + n_steps, -1]
@@ -200,7 +208,16 @@ def newLSTM (df, target = 'Close', window = 20, train_split = 0.8):
             X.append(np.concatenate((data[i:i + n_steps, :-1], temp.reshape(-1,1)), axis=1))
 
             y.append(data[i + n_steps, -1] / CentralValue) # Putting the next row's target value into y
-            
+
+        # #replace NANs with 0
+        # X = np.nan_to_num(X)
+        # y = np.nan_to_num(y)
+        
+        # #replace inf with 0
+        # from numpy import inf
+        # X[X==inf]=0
+        # X[X==-inf]=0
+
         return np.array(X), np.array(y)
 
     # Call the function to format the data for the LSTM
@@ -216,7 +233,26 @@ def newLSTM (df, target = 'Close', window = 20, train_split = 0.8):
 
     # Create X_Predict
     X_Predict = []
-    X_Predict.append(X.values[len(X) - window:, ])
+
+    #set the last value of X as the central value
+    CentralValue = X.values[-1, -1]
+
+    # Encountered a CentralValue of 0, but noticed later that the stock was halted. I prefer to remove these days during Feature Engineering, but I will leave this here in case I run into issues in the future
+    # if CentralValue == 0:
+    #     CentralValue = 1
+    #     print('CentralValue = 0', "X_Predict", )
+
+    temp = X.values[len(X) - window:, -1]
+    temp = temp / CentralValue
+    
+    # Encountered a CentralValue of 0, but noticed later that the stock was halted. I prefer to remove these days during Feature Engineering, but I will leave this here in case I run into issues in the future
+    # #replace NANs and inf with 0
+    # temp = np.nan_to_num(temp)
+    # from numpy import inf
+    # temp[temp==inf]=0
+    # temp[temp==-inf]=0
+
+    X_Predict.append(np.concatenate((X.values[len(X) - window:, :-1], temp.reshape(-1,1)), axis=1))
     X_Predict = np.array(X_Predict)
 
     #Build the model
@@ -276,26 +312,31 @@ def getPredictions(df):
     symbol = df['Symbol'][0]
 
     # Predict Close
+    print('Predicting Close...')
     true, test, pred, rmse = newLSTM(df, target = 'Close', window = 20, train_split = 0.8)
     df = addPredictions(df, true, test, pred, rmse, 'Close')
     Predictions = addFuturePredictions(Predictions, pred, rmse, 'Close', symbol)
     
     # Predict High
+    print('Predicting High...')
     true, test, pred, rmse = newLSTM(df, target = 'High', window = 20, train_split = 0.8)
     df = addPredictions(df, true, test, pred, rmse, 'High')
     Predictions = addFuturePredictions(Predictions, pred, rmse, 'High', symbol)
 
     # Predict Low
+    print('Predicting Low...')
     true, test, pred, rmse = newLSTM(df, target = 'Low', window = 20, train_split = 0.8)
     df = addPredictions(df, true, test, pred, rmse, 'Low')
     Predictions = addFuturePredictions(Predictions, pred, rmse, 'Low', symbol)
     
     # Predict Open
+    print('Predicting Open...')
     true, test, pred, rmse = newLSTM(df, target = 'Open', window = 20, train_split = 0.8)
     df = addPredictions(df, true, test, pred, rmse, 'Open')
     Predictions = addFuturePredictions(Predictions, pred, rmse, 'Open', symbol)
 
     # Predict Median_Price
+    print('Predicting Median_Price...')
     true, test, pred, rmse = newLSTM(df, target = 'Median_Price', window = 20, train_split = 0.8)
     df = addPredictions(df, true, test, pred, rmse, 'Median_Price')
     Predictions = addFuturePredictions(Predictions, pred, rmse, 'Median_Price', symbol)
