@@ -283,6 +283,8 @@ def newLSTM (df, target = 'Close', window = 20, train_split = 0.8):
     return y_test, y_pred, y_pred_future, rmse
 
 def addPredictions(df, true, test, rmse, target):
+    import numpy as np
+
     # Add the predictions to the dataframe
     df[target + '_Predictions'] = np.insert(test, 0, np.zeros(len(df) - len(test)))
     df[target + '_True'] = np.insert(true, 0, np.zeros(len(df) - len(true)))
