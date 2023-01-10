@@ -363,6 +363,53 @@ def getPredictions(df):
     Predictions = addFuturePredictions(Predictions, pred, rmse, 'Median_Price', symbol)
 
     # Add Close, High, Low, Open, and Median_Price to df
-    df = pd.concat([df, Close, High, Low, Open, Median], axis=1)
+    temp = pd.concat([Close, High, Low, Open, Median], axis=1)
+
+    # temp and df should have different lengths, so we need to add the extra rows to temp
+    if len(df) > len(temp):
+        temp = pd.concat([temp, pd.DataFrame(np.zeros((len(df) - len(temp), 10)), columns=temp.columns)], axis=0)
+
+    # Add temp as additional columns to df
+    df = df.reset_index(drop=False) #we don't have the dates as an index for temp, so we need to reset the index to merge
+    df = pd.concat([df, temp], axis=1)
+    df = df.set_index('Date')
 
     return df, Predictions
+
+def formatPredictions(Ticker_pred):    
+    # Putting the predictions back to the original price value
+    Ticker_pred['Open_Predictions'] = Ticker_pred['Open_Predictions'] * Ticker_pred['Open'].shift(1)
+    Ticker_pred['Open_True'] = Ticker_pred['Open_True'] * Ticker_pred['Open'].shift(1)
+
+    Ticker_pred['Close_Predictions'] = Ticker_pred['Close_Predictions'] * Ticker_pred['Close'].shift(1)
+    Ticker_pred['Close_True'] = Ticker_pred['Close_True'] * Ticker_pred['Close'].shift(1)
+
+    Ticker_pred['High_Predictions'] = Ticker_pred['High_Predictions'] * Ticker_pred['High'].shift(1)
+    Ticker_pred['High_True'] = Ticker_pred['High_True'] * Ticker_pred['High'].shift(1)
+
+    Ticker_pred['Low_Predictions'] = Ticker_pred['Low_Predictions'] * Ticker_pred['Low'].shift(1)
+    Ticker_pred['Low_True'] = Ticker_pred['Low_True'] * Ticker_pred['Low'].shift(1)
+
+    Ticker_pred['Median_Price_Predictions'] = Ticker_pred['Median_Price_Predictions'] * Ticker_pred['Median_Price'].shift(1)
+    Ticker_pred['Median_Price_True'] = Ticker_pred['Median_Price_True'] * Ticker_pred['Median_Price'].shift(1)
+
+    return Ticker_pred
+
+
+def plotlyGraph(target, Ticker_pred, Ticker_Future, ticker):
+    import plotly.graph_objects as go
+    
+    print(target + ':')
+
+    #Get RMSE value, which is the value of RMSE column in Ticker_Future where Target = target and symbol = ticker
+    RMSE = Ticker_Future.loc[(Ticker_Future['Target'] == target) & (Ticker_Future['Symbol'] == ticker), 'RMSE'].values[0]
+
+    fig = go.Figure()   
+    fig.add_trace(go.Scatter(x=Ticker_pred.index, y=Ticker_pred[target + '_True'], mode='lines', name='True'))
+    # fig.add_trace(go.Scatter(x=Ticker_pred.index, y=Ticker_pred[target + '_Predictions'], mode='lines', name='Predictions'))
+
+    #make a shaded area for the prediction (width = rmse on each side)
+    fig.add_trace(go.Scatter(x=Ticker_pred.index, y=Ticker_pred[target + '_Predictions'] * (1 + RMSE), fill=None, mode='lines', line_color='rgba(0,100,80,0.2)', name='Prediction_High'))
+    fig.add_trace(go.Scatter(x=Ticker_pred.index, y=Ticker_pred[target + '_Predictions'] * (1 - RMSE), fill='tonexty', mode='lines', line_color='rgba(0,100,80,0.2)', name='Prediction_Band'))
+    fig.show()
+    print()
