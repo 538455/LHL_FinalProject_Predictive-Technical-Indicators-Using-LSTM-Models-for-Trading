@@ -20,7 +20,6 @@ def getTicker(ticker):
     else:
         print('Error getting historical data for ' + ticker)
 
-
 def featureEngineering(df):
 
     import pandas as pd
@@ -159,24 +158,24 @@ def newLSTM (df, target = 'Close', window = 20, train_split = 0.8):
     ticker = df['Symbol'][0].replace('.TO', '')
 
     # Print what symbol you are training and deleting the column after. We only kept it for the print statement
-    print('Symbol: ', ticker)
+    # print('Symbol: ', ticker) # Kept for archive purposes, but now I'm printing the ticker in the main function
     
     # Set X , ensuring 'Target' is the last column (set X without then concat back in)
     #removing Close, Open, High, Low, Median_Price columns, unless they are the target
-    if target = 'Close':
-    X = df.drop([target, 'Symbol', 'Open', 'High', 'Low', 'Median_Price'], axis=1)
+    if target == 'Close':
+        X = df.drop([target, 'Symbol', 'Open', 'High', 'Low', 'Median_Price'], axis=1)
+        
+    if target == 'High':
+        X = df.drop([target, 'Symbol', 'Close', 'Open', 'Low', 'Median_Price'], axis=1)
 
-    if target = 'Open':
-    X = df.drop([target, 'Symbol', 'Close', 'High', 'Low', 'Median_Price'], axis=1)
+    if target == 'Low':
+        X = df.drop([target, 'Symbol', 'Close', 'Open', 'High', 'Median_Price'], axis=1)
 
-    if target = 'High':
-    X = df.drop([target, 'Symbol', 'Close', 'Open', 'Low', 'Median_Price'], axis=1)
+    if target == 'Open':
+        X = df.drop([target, 'Symbol', 'Close', 'High', 'Low', 'Median_Price'], axis=1)
 
-    if target = 'Low':
-    X = df.drop([target, 'Symbol', 'Close', 'Open', 'High', 'Median_Price'], axis=1)
-
-    if target = 'Median_Price':
-    X = df.drop([target, 'Symbol', 'Close', 'Open', 'High', 'Low'], axis=1)    
+    if target == 'Median_Price':
+        X = df.drop([target, 'Symbol', 'Close', 'Open', 'High', 'Low'], axis=1)    
     
     
     y = df[target]
@@ -255,21 +254,33 @@ def newLSTM (df, target = 'Close', window = 20, train_split = 0.8):
     X_Predict.append(np.concatenate((X.values[len(X) - window:, :-1], temp.reshape(-1,1)), axis=1))
     X_Predict = np.array(X_Predict)
 
-    #Build the model
-    lstm = Sequential()
-    lstm.add(LSTM(50, activation='relu', return_sequences=True, input_shape=(X_train.shape[1], X_train.shape[2])))
-    # lstm.add(LSTM(50, activation='relu', return_sequences=True))       
-    # lstm.add(LSTM(120, activation='relu', return_sequences=True))
-    lstm.add(LSTM(50, activation='relu', return_sequences=False))
-    lstm.add(Dropout(rate=0.2))
-    lstm.add(Dense(1))
-    lstm.compile(optimizer='adam', loss='mse')
+    # Check if we already have a trained model (check path)
+    try:
 
-    # Train the model
-    lstm.fit(X_train, y_train, epochs=25, batch_size=5, verbose=1, shuffle=False)
+        from keras.models import load_model
 
-    # Save trained model
-    lstm.save('../models/LSTM_' + ticker + '_' + target + '.h5')      
+        lstm = load_model('../models/LSTM_' + ticker + '_' + target + '.h5')
+        print('Model Loaded')
+    
+    except:
+    
+        print('Model Not Found, training new model')
+
+        #Build the model
+        lstm = Sequential()
+        lstm.add(LSTM(50, activation='relu', return_sequences=True, input_shape=(X_train.shape[1], X_train.shape[2])))
+        # lstm.add(LSTM(50, activation='relu', return_sequences=True))       
+        # lstm.add(LSTM(120, activation='relu', return_sequences=True))
+        lstm.add(LSTM(50, activation='relu', return_sequences=False))
+        lstm.add(Dropout(rate=0.2))
+        lstm.add(Dense(1))
+        lstm.compile(optimizer='adam', loss='mse')
+        
+        # Train the model
+        lstm.fit(X_train, y_train, epochs=25, batch_size=5, verbose=1, shuffle=False)
+
+        # Save trained model
+        lstm.save('../models/LSTM_' + ticker + '_' + target + '.h5')      
 
     # Test model
     y_pred = lstm.predict(X_test)
@@ -282,16 +293,21 @@ def newLSTM (df, target = 'Close', window = 20, train_split = 0.8):
     
     return y_test, y_pred, y_pred_future, rmse
 
-def addPredictions(df, true, test, rmse, target):
+def addPredictions(lenDF, true, test, rmse, target):
     import numpy as np
+    import pandas as pd
+
+    df = pd.DataFrame()
 
     # Add the predictions to the dataframe
-    df[target + '_Predictions'] = np.insert(test, 0, np.zeros(len(df) - len(test)))
-    df[target + '_True'] = np.insert(true, 0, np.zeros(len(df) - len(true)))
+    df[target + '_Predictions'] = np.insert(test, 0, np.zeros(lenDF - len(test)))
+    df[target + '_True'] = np.insert(true, 0, np.zeros(lenDF - len(true)))
 
-    # Add the RMSE to the dataframe
-    df[target + '_Predictions_High'] = df[target + '_Predictions'] + rmse
-    df[target + '_Predictions_Low'] = df[target + '_Predictions'] - rmse
+    # Set all values of column RMSE to rmse
+    # df['RMSE'] = rmse
+
+    # df[target + '_Predictions_High'] = df[target + '_Predictions'] + df['RMSE']
+    # df[target + '_Predictions_Low'] = df[target + '_Predictions'] - df['RMSE']
 
     return df
 
@@ -313,34 +329,40 @@ def getPredictions(df):
     Predictions = pd.DataFrame()
     symbol = df['Symbol'][0]
 
+    #print Symbol
+    print("Symbol: ", symbol)
+
     # Predict Close
     print('Predicting Close...')
     true, test, pred, rmse = newLSTM(df, target = 'Close', window = 20, train_split = 0.8)
-    df = addPredictions(df, true, test, rmse, 'Close')
+    Close = addPredictions(len(df), true, test, rmse, 'Close')
     Predictions = addFuturePredictions(Predictions, pred, rmse, 'Close', symbol)
     
     # Predict High
     print('Predicting High...')
     true, test, pred, rmse = newLSTM(df, target = 'High', window = 20, train_split = 0.8)
-    df = addPredictions(df, true, test, rmse, 'High')
+    High = addPredictions(len(df), true, test, rmse, 'High')
     Predictions = addFuturePredictions(Predictions, pred, rmse, 'High', symbol)
 
     # Predict Low
     print('Predicting Low...')
     true, test, pred, rmse = newLSTM(df, target = 'Low', window = 20, train_split = 0.8)
-    df = addPredictions(df, true, test, pred, 'Low')
+    Low = addPredictions(len(df), true, test, pred, 'Low')
     Predictions = addFuturePredictions(Predictions, pred, rmse, 'Low', symbol)
     
     # Predict Open
     print('Predicting Open...')
     true, test, pred, rmse = newLSTM(df, target = 'Open', window = 20, train_split = 0.8)
-    df = addPredictions(df, true, test, pred, 'Open')
+    Open = addPredictions(len(df), true, test, pred, 'Open')
     Predictions = addFuturePredictions(Predictions, pred, rmse, 'Open', symbol)
 
     # Predict Median_Price
-    print('Predicting Median_Price...')
+    print('Predicting Median Price...')
     true, test, pred, rmse = newLSTM(df, target = 'Median_Price', window = 20, train_split = 0.8)
-    df = addPredictions(df, true, test, pred, 'Median_Price')
+    Median = addPredictions(len(df), true, test, pred, 'Median_Price')
     Predictions = addFuturePredictions(Predictions, pred, rmse, 'Median_Price', symbol)
+
+    # Add Close, High, Low, Open, and Median_Price to df
+    df = pd.concat([df, Close, High, Low, Open, Median], axis=1)
 
     return df, Predictions
