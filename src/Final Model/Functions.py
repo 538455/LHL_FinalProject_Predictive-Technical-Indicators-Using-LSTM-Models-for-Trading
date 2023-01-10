@@ -161,24 +161,24 @@ def newLSTM (df, target = 'Close', window = 20, train_split = 0.8):
     # Print what symbol you are training and deleting the column after. We only kept it for the print statement
     print('Symbol: ', ticker)
     
-    # Deleting Close, Open, High, Low, Median_Price columns unless they are the target
-    if target != 'Close':
-        df.drop(['Close'], axis=1, inplace=True)
-    
-    if target != 'Open':
-        df.drop(['Open'], axis=1, inplace=True)
-    
-    if target != 'High':
-        df.drop(['High'], axis=1, inplace=True)
-    
-    if target != 'Low':
-        df.drop(['Low'], axis=1, inplace=True)
-    
-    if target != 'Median_Price':
-        df.drop(['Median_Price'], axis=1, inplace=True)
-
     # Set X , ensuring 'Target' is the last column (set X without then concat back in)
-    X = df.drop([target, 'Symbol'], axis=1)
+    #removing Close, Open, High, Low, Median_Price columns, unless they are the target
+    if target = 'Close':
+    X = df.drop([target, 'Symbol', 'Open', 'High', 'Low', 'Median_Price'], axis=1)
+
+    if target = 'Open':
+    X = df.drop([target, 'Symbol', 'Close', 'High', 'Low', 'Median_Price'], axis=1)
+
+    if target = 'High':
+    X = df.drop([target, 'Symbol', 'Close', 'Open', 'Low', 'Median_Price'], axis=1)
+
+    if target = 'Low':
+    X = df.drop([target, 'Symbol', 'Close', 'Open', 'High', 'Median_Price'], axis=1)
+
+    if target = 'Median_Price':
+    X = df.drop([target, 'Symbol', 'Close', 'Open', 'High', 'Low'], axis=1)    
+    
+    
     y = df[target]
     X = pd.concat([X, y], axis=1)
 
