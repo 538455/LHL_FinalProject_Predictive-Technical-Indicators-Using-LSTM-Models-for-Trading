@@ -57,7 +57,7 @@ def dailyPrediction(ticker, accuracyPlot = True):
 
     print('When Missed:')
     print('Take a loss: ', round(loss / missed * 100), "% of the time...     ", 'Average loss: ', round((Ticker_D_Pred[(Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 0) & (Ticker_D_Pred['profit'] < 1)]['profit'].mean() * 100) - 100, 2), "%")
-    print('Make a gain: ', round(gain / missed * 100), "% of the time...     ", 'Average gain: ', round((Ticker_D_Pred[(Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 0) & (Ticker_D_Pred['profit'] > 1)]['profit'].mean() * 100) - 100, 2), "%")
+    print('Make a gain: ', round(gain / missed * 100), "% of the time...     ", 'Average gain: ', round((Ticker_D_Pred[(Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 0) & (Ticker_D_Pred['profit'] >= 1)]['profit'].mean() * 100) - 100, 2), "%")
 
     print()
     # print("Total historical profit:", round(Ticker_D_Pred['profit'].sum()), "%")
