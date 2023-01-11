@@ -1,4 +1,4 @@
-def dailyPrediction(ticker, plot = True):
+def dailyPrediction(ticker, accuracyPlot = True):
     
     # Get the stock historical data
     import pandas as pd
@@ -23,7 +23,7 @@ def dailyPrediction(ticker, plot = True):
     # from Functions import formatPredictions
     Ticker_pred = formatPredictions(Ticker_pred)
 
-    if plot == True:
+    if accuracyPlot == True:
         # Plot the predictions
         # from Functions import plotlyGraph
         plotlyGraph('Open', Ticker_pred, Ticker_Future, ticker)
@@ -32,7 +32,145 @@ def dailyPrediction(ticker, plot = True):
         plotlyGraph('Low', Ticker_pred, Ticker_Future, ticker)
         plotlyGraph('Median_Price', Ticker_pred, Ticker_Future, ticker)
 
-    return Ticker_pred, Ticker_Future
+    # Format the predictions
+    Ticker_D_Pred = format_D_Pred(Ticker_pred, Ticker_Future)
+
+    # Add the investment columns
+    Ticker_D_Pred = addInvestmentcols(Ticker_D_Pred)
+
+    #count the number of unique rows where bought == 1
+    bought = len(Ticker_D_Pred.loc[Ticker_D_Pred['bought'] == 1])
+    sold = len(Ticker_D_Pred.loc[Ticker_D_Pred['sold'] == 1])
+
+    # Print the accuracy and keep only one decimal
+    print()
+    print("Success rate:", round(sold / bought * 100, 2), "%")
+
+    # Print the sum of profit
+    print('Daily Average: ', round((Ticker_D_Pred[(Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 1)]['profit'].mean() * 100) - 100, 2), "%")
+
+    print()
+    # Print the number of rows where Ticker_D_Pred['bought'] == 1 & sold == 0 & profit > 1
+    missed = len(Ticker_D_Pred[(Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 0)])
+    loss = len(Ticker_D_Pred[(Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 0) & (Ticker_D_Pred['profit'] < 1)])
+    gain = len(Ticker_D_Pred[(Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 0) & (Ticker_D_Pred['profit'] > 1)])
+
+    print('When Missed:')
+    print('Take a loss: ', round(loss / missed * 100), "% of the time...     ", 'Average loss: ', round((Ticker_D_Pred[(Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 0) & (Ticker_D_Pred['profit'] < 1)]['profit'].mean() * 100) - 100, 2), "%")
+    print('Make a gain: ', round(gain / missed * 100), "% of the time...     ", 'Average gain: ', round((Ticker_D_Pred[(Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 0) & (Ticker_D_Pred['profit'] > 1)]['profit'].mean() * 100) - 100, 2), "%")
+
+    print()
+    # print("Total historical profit:", round(Ticker_D_Pred['profit'].sum()), "%")
+
+    #Make a copy of Ticker_D_Pred
+    Ticker_D_Pred_copy = Ticker_D_Pred.copy()
+    # reset the index
+    Ticker_D_Pred_copy.reset_index(inplace=True, drop=False)
+    # rename the index column to Date and format it to datetime
+    Ticker_D_Pred_copy.rename(columns={'index': 'Date'}, inplace=True)
+    Ticker_D_Pred_copy['Date'] = pd.to_datetime(Ticker_D_Pred_copy['Date'])
+
+    #Filter Date to only include year 2022
+    Ticker_D_Pred_copy = Ticker_D_Pred_copy[Ticker_D_Pred_copy['Date'].dt.year == 2022]
+    
+    #print the sum of profit
+    print("2022 profit:", round(Ticker_D_Pred_copy['profit'].sum()), "%")
+    print("# Transactions:", len(Ticker_D_Pred_copy.loc[Ticker_D_Pred_copy['bought'] == 1]))
+
+
+    return Ticker_D_Pred
+
+def addInvestmentcols(Ticker_D_Pred):
+    import pandas as pd
+    import numpy as np
+
+    # RMSE = High_RMSE's last value
+    RMSE = 1 - (Ticker_D_Pred['High_RMSE'].iloc[-1] * 0) # In the end, it rem
+    MinPredProfit = 1
+
+    # LimitBuy = Low_Predictions
+    # LimitSell = High_Predictions - RMSE
+    # StopLoss = Low_Predictions * 0.97
+
+    # Create a new column in Ticker_D_Pred called Predicted_Profit and set it to 1 if Low_Predictions > (High_Predictions * 1.03) and 0 otherwise
+    Ticker_D_Pred['Predicted_Profit'] = (Ticker_D_Pred['High_Predictions'] * RMSE) / Ticker_D_Pred['Open_Predictions']
+
+    # Create a new column in Ticker_D_P
+    Ticker_D_Pred['True_Profit'] = Ticker_D_Pred['High_True'] / Ticker_D_Pred['Open_True']
+
+    # Create a new column in Ticker_D_Pred called bought and set it to 1 if Predicted_Profit > 1, Low_Predictions > Low_True and 0 otherwise
+    Ticker_D_Pred['bought'] = np.where((Ticker_D_Pred['Predicted_Profit'] > MinPredProfit) & (Ticker_D_Pred['Open_Predictions'] > Ticker_D_Pred['Open_True']), 1, 0)
+
+    # Create a new column in Ticker_D_Pred called sold and set it to 1 if bought == 1 and High_Predictions < High_True and 0 otherwise
+    Ticker_D_Pred['sold'] = np.where((Ticker_D_Pred['bought'] == 1) & ((Ticker_D_Pred['High_Predictions'] * RMSE) < Ticker_D_Pred['High_True']), 1, 0)
+
+    # Create a new column in Ticker_D_Pred called profit and: 
+    # If bought == 1 and sold == 1, set it to High_Predictions - Low_Predictions
+    # If bought == 1 and sold == 0, set it to Close_True - Low_Predictions
+    # If bought == 0 and sold == 0, set it to 0
+    Ticker_D_Pred['profit'] = np.where((Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 1), (Ticker_D_Pred['High_Predictions'] * RMSE) / Ticker_D_Pred['Open_Predictions'], np.where((Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 0), Ticker_D_Pred['Close_True'] / Ticker_D_Pred['Open_Predictions'], 0))
+
+    # Add stoploss. In profit, if value is between 0.01 and 0.97, set it to 0.97
+    # Ticker_D_Pred['profit'] = np.where((Ticker_D_Pred['profit'] > 0.01) & (Ticker_D_Pred['profit'] < 0.97), 0.97, Ticker_D_Pred['profit'])
+
+    return Ticker_D_Pred
+
+
+def format_D_Pred(Ticker_D_Pred, Ticker_D_Future):
+    import pandas as pd
+    import numpy as np
+
+
+    #Get Open, Close, High, Low, Volume, and Median Price of the last day in Ticker_D_Pred and Ticker_W_Pred
+    DOpen = Ticker_D_Pred['Open'].iloc[-1]
+    DClose = Ticker_D_Pred['Close'].iloc[-1]
+    DHigh = Ticker_D_Pred['High'].iloc[-1]
+    DLow = Ticker_D_Pred['Low'].iloc[-1]
+    DMedianPrice = Ticker_D_Pred['Median_Price'].iloc[-1]
+
+    # Add an empty row to the end of Ticker_D_Pred
+    Ticker_D_Pred.loc[len(Ticker_D_Pred)] = np.nan
+
+    # set the index of the new row to the next weekday from today
+    next_weekday = pd.to_datetime('today') + pd.offsets.BDay(1)
+    Ticker_D_Pred.reset_index(inplace=True, drop=False)
+    Ticker_D_Pred.loc[Ticker_D_Pred.index[-1], 'Date'] = next_weekday
+    Ticker_D_Pred['Date'] = pd.to_datetime(Ticker_D_Pred['Date']).dt.date
+    Ticker_D_Pred.set_index(['Date'], inplace=True)
+
+    # Format the future predictions
+    Ticker_D_Future.loc[Ticker_D_Future['Target'] == 'Open', 'Prediction'] = Ticker_D_Future.loc[Ticker_D_Future['Target'] == 'Open', 'Prediction'] * DOpen
+    Ticker_D_Future.loc[Ticker_D_Future['Target'] == 'Close', 'Prediction'] = Ticker_D_Future.loc[Ticker_D_Future['Target'] == 'Close', 'Prediction'] * DClose
+    Ticker_D_Future.loc[Ticker_D_Future['Target'] == 'High', 'Prediction'] = Ticker_D_Future.loc[Ticker_D_Future['Target'] == 'High', 'Prediction'] * DHigh
+    Ticker_D_Future.loc[Ticker_D_Future['Target'] == 'Low', 'Prediction'] = Ticker_D_Future.loc[Ticker_D_Future['Target'] == 'Low', 'Prediction'] * DLow
+    Ticker_D_Future.loc[Ticker_D_Future['Target'] == 'Median_Price', 'Prediction'] = Ticker_D_Future.loc[Ticker_D_Future['Target'] == 'Median_Price', 'Prediction'] * DMedianPrice
+
+    # Add the future predictions to the last row of Ticker_D_Pred
+    Ticker_D_Pred.loc[Ticker_D_Pred.index[-1], 'Open_Predictions'] = Ticker_D_Future.loc[Ticker_D_Future['Target'] == 'Open', 'Prediction'].values
+    Ticker_D_Pred.loc[Ticker_D_Pred.index[-1], 'Close_Predictions'] = Ticker_D_Future.loc[Ticker_D_Future['Target'] == 'Close', 'Prediction'].values
+    Ticker_D_Pred.loc[Ticker_D_Pred.index[-1], 'High_Predictions'] = Ticker_D_Future.loc[Ticker_D_Future['Target'] == 'High', 'Prediction'].values
+    Ticker_D_Pred.loc[Ticker_D_Pred.index[-1], 'Low_Predictions'] = Ticker_D_Future.loc[Ticker_D_Future['Target'] == 'Low', 'Prediction'].values
+    Ticker_D_Pred.loc[Ticker_D_Pred.index[-1], 'Median_Price_Predictions'] = Ticker_D_Future.loc[Ticker_D_Future['Target'] == 'Median_Price', 'Prediction'].values
+
+    #Create Open_RMSE, Close_RMSE, High_RMSE, Low_RMSE, Median_Price_RMSE columns
+    Ticker_D_Pred['Open_RMSE'] = np.nan
+    Ticker_D_Pred['Close_RMSE'] = np.nan
+    Ticker_D_Pred['High_RMSE'] = np.nan
+    Ticker_D_Pred['Low_RMSE'] = np.nan
+    Ticker_D_Pred['Median_Price_RMSE'] = np.nan
+
+    # Add the RMSE values to the last row of Ticker_D_Pred
+    Ticker_D_Pred.loc[Ticker_D_Pred.index[-1], 'Open_RMSE'] = Ticker_D_Future.loc[Ticker_D_Future['Target'] == 'Open', 'RMSE'].values
+    Ticker_D_Pred.loc[Ticker_D_Pred.index[-1], 'Close_RMSE'] = Ticker_D_Future.loc[Ticker_D_Future['Target'] == 'Close', 'RMSE'].values
+    Ticker_D_Pred.loc[Ticker_D_Pred.index[-1], 'High_RMSE'] = Ticker_D_Future.loc[Ticker_D_Future['Target'] == 'High', 'RMSE'].values
+    Ticker_D_Pred.loc[Ticker_D_Pred.index[-1], 'Low_RMSE'] = Ticker_D_Future.loc[Ticker_D_Future['Target'] == 'Low', 'RMSE'].values
+    Ticker_D_Pred.loc[Ticker_D_Pred.index[-1], 'Median_Price_RMSE'] = Ticker_D_Future.loc[Ticker_D_Future['Target'] == 'Median_Price', 'RMSE'].values
+
+    # Delete Close_Change, High_Change, Low_Change, Open_Change, Volume_Change, AO,	ROC,RSI,StochRSI,StochOsc,TSI,CMF,ATR,BB_HL,BB_LH,Ratio_EMA5,Ratio_EMA20,Ratio_EMA5_Change,Ratio_EMA20_Change,MACD,MACD_Signal,MACD_Diff,Median_Price
+    Ticker_D_Pred.drop(['Close_Change', 'High_Change', 'Low_Change', 'Open_Change', 'Volume_Change', 'AO', 'ROC', 'RSI', 'StochRSI', 'StochOsc', 'TSI', 'CMF', 'ATR', 'BB_HL', 'BB_LH', 'Ratio_EMA5', 'Ratio_EMA20', 'Ratio_EMA5_Change', 'Ratio_EMA20_Change', 'MACD', 'MACD_Signal', 'MACD_Diff', 'Median_Price'], axis=1, inplace=True)
+
+    return Ticker_D_Pred
+
 
 def getTicker_daily(ticker):
     import pandas as pd
@@ -42,66 +180,6 @@ def getTicker_daily(ticker):
     
     # use yfinance to get the ticker history
     df = yf.Ticker(ticker).history(period='max')
-
-    # add symbol column
-    df['Symbol'] = ticker
-
-    # Format the date
-    df.reset_index(inplace=True)
-    df['Date'] = pd.to_datetime(df['Date'], utc=True).dt.date
-    df.set_index('Date', inplace=True)
-
-    if not df.empty:
-        return df
-    else:
-        print('Error getting historical data for ' + ticker)
-
-
-def weeklyPrediction(ticker, plot = True):
-    
-    # Get the stock historical data
-    import pandas as pd
-    # from Functions import getTicker_daily
-    Ticker = getTicker_weekly(ticker)
-
-    # Save a copy of Ticker (backup if library is not working)
-    Ticker.reset_index(inplace=True)
-    Ticker.to_csv('../../data/1W/' + ticker + '.csv', index=False)
-
-    Ticker = pd.read_csv('../../data/1W/' + ticker + '.csv', index_col=0)
-
-    # Feature Engineering
-    # from Functions import featureEngineering
-    Ticker_FE = featureEngineering(Ticker)
-
-    # Run the model to get the predictions
-    # from Functions import getPredictions
-    Ticker_pred, Ticker_Future = getPredictions(Ticker_FE, Predict='1W')
-
-    # Reformat the Prediction Prices
-    # from Functions import formatPredictions
-    Ticker_pred = formatPredictions(Ticker_pred)
-
-    if plot == True:
-        # Plot the predictions
-        # from Functions import plotlyGraph
-        plotlyGraph('Open', Ticker_pred, Ticker_Future, ticker)
-        plotlyGraph('Close', Ticker_pred, Ticker_Future, ticker)
-        plotlyGraph('High', Ticker_pred, Ticker_Future, ticker)
-        plotlyGraph('Low', Ticker_pred, Ticker_Future, ticker)
-        plotlyGraph('Median_Price', Ticker_pred, Ticker_Future, ticker)
-
-    return Ticker_pred, Ticker_Future
-
-
-def getTicker_weekly(ticker):
-    import pandas as pd
-    import yfinance as yf
-    
-    df = pd.DataFrame()
-    
-    # use yfinance to get the ticker history
-    df = yf.Ticker(ticker).history(period='max', interval='1wk')
 
     # add symbol column
     df['Symbol'] = ticker
@@ -367,16 +445,16 @@ def runLSTM (df, target = 'Close', window = 20, train_split = 0.8, predict = '1D
         lstm.compile(optimizer='adam', loss='mse')
         
         # Train the model
-        lstm.fit(X_train, y_train, epochs=25, batch_size=5, verbose=1, shuffle=False)
+        lstm.fit(X_train, y_train, epochs=100, batch_size=5, verbose=1, shuffle=False)
 
         # Save trained model
         lstm.save('../models/' + predict + '/LSTM_' + ticker + '_' + target + '.h5')      
 
     # Test model
-    y_pred = lstm.predict(X_test)
+    y_pred = lstm.predict(X_test, verbose=0)
 
     #Predict future values
-    y_pred_future = lstm.predict(X_Predict)
+    y_pred_future = lstm.predict(X_Predict, verbose=0)
 
     # Calculate RMSE
     rmse = np.sqrt(mean_squared_error(y_test, y_pred))
