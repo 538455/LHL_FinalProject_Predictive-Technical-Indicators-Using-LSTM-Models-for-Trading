@@ -1,4 +1,40 @@
-def getTicker(ticker):
+def dailyPrediction(ticker, plot = True):
+    
+    # Get the stock historical data
+    import pandas as pd
+    # from Functions import getTicker_daily
+    Ticker = getTicker_daily(ticker)
+
+    # Save a copy of Ticker (backup if library is not working)
+    Ticker.reset_index(inplace=True)
+    Ticker.to_csv('../../data/1D/' + ticker + '.csv', index=False)
+
+    Ticker = pd.read_csv('../../data/1D/' + ticker + '.csv', index_col=0)
+
+    # Feature Engineering
+    # from Functions import featureEngineering
+    Ticker_FE = featureEngineering(Ticker)
+
+    # Run the model to get the predictions
+    # from Functions import getPredictions
+    Ticker_pred, Ticker_Future = getPredictions(Ticker_FE, Predict='1D')
+
+    # Reformat the Prediction Prices
+    # from Functions import formatPredictions
+    Ticker_pred = formatPredictions(Ticker_pred)
+
+    if plot == True:
+        # Plot the predictions
+        # from Functions import plotlyGraph
+        plotlyGraph('Open', Ticker_pred, Ticker_Future, ticker)
+        plotlyGraph('Close', Ticker_pred, Ticker_Future, ticker)
+        plotlyGraph('High', Ticker_pred, Ticker_Future, ticker)
+        plotlyGraph('Low', Ticker_pred, Ticker_Future, ticker)
+        plotlyGraph('Median_Price', Ticker_pred, Ticker_Future, ticker)
+
+    return Ticker_pred, Ticker_Future
+
+def getTicker_daily(ticker):
     import pandas as pd
     import yfinance as yf
     
@@ -6,6 +42,66 @@ def getTicker(ticker):
     
     # use yfinance to get the ticker history
     df = yf.Ticker(ticker).history(period='max')
+
+    # add symbol column
+    df['Symbol'] = ticker
+
+    # Format the date
+    df.reset_index(inplace=True)
+    df['Date'] = pd.to_datetime(df['Date'], utc=True).dt.date
+    df.set_index('Date', inplace=True)
+
+    if not df.empty:
+        return df
+    else:
+        print('Error getting historical data for ' + ticker)
+
+
+def weeklyPrediction(ticker, plot = True):
+    
+    # Get the stock historical data
+    import pandas as pd
+    # from Functions import getTicker_daily
+    Ticker = getTicker_weekly(ticker)
+
+    # Save a copy of Ticker (backup if library is not working)
+    Ticker.reset_index(inplace=True)
+    Ticker.to_csv('../../data/1W/' + ticker + '.csv', index=False)
+
+    Ticker = pd.read_csv('../../data/1W/' + ticker + '.csv', index_col=0)
+
+    # Feature Engineering
+    # from Functions import featureEngineering
+    Ticker_FE = featureEngineering(Ticker)
+
+    # Run the model to get the predictions
+    # from Functions import getPredictions
+    Ticker_pred, Ticker_Future = getPredictions(Ticker_FE, Predict='1W')
+
+    # Reformat the Prediction Prices
+    # from Functions import formatPredictions
+    Ticker_pred = formatPredictions(Ticker_pred)
+
+    if plot == True:
+        # Plot the predictions
+        # from Functions import plotlyGraph
+        plotlyGraph('Open', Ticker_pred, Ticker_Future, ticker)
+        plotlyGraph('Close', Ticker_pred, Ticker_Future, ticker)
+        plotlyGraph('High', Ticker_pred, Ticker_Future, ticker)
+        plotlyGraph('Low', Ticker_pred, Ticker_Future, ticker)
+        plotlyGraph('Median_Price', Ticker_pred, Ticker_Future, ticker)
+
+    return Ticker_pred, Ticker_Future
+
+
+def getTicker_weekly(ticker):
+    import pandas as pd
+    import yfinance as yf
+    
+    df = pd.DataFrame()
+    
+    # use yfinance to get the ticker history
+    df = yf.Ticker(ticker).history(period='max', interval='1wk')
 
     # add symbol column
     df['Symbol'] = ticker
@@ -33,8 +129,11 @@ def featureEngineering(df):
     df['Date'] = pd.to_datetime(df['Date'])
     df.set_index('Date', inplace=True)
     
-    #Switching NaNs to zeros so we dont get infinites
-    df.fillna(0, inplace=True)
+    #Delete rows with NaNs
+    df.dropna(inplace=True)
+    
+    # #Switching NaNs to zeros so we dont get infinites
+    # df.fillna(0, inplace=True)
     
 
     # Add a column called Change for the main value, which is the percent change from the previous day's close
@@ -47,9 +146,9 @@ def featureEngineering(df):
     #drop dividends and splits
     df.drop(['Dividends', 'Stock Splits'], axis=1, inplace=True)
 
-    # Drop rows where Open and Close are both 0 (halted trading)
-    df2 = df[(df['Open'] != 0) & (df['Close'] != 0)]    
-    df = df2.copy() # Doing it this way so we don't get a warning saying we're setting a value on a copy of a slice from a dataframe
+    # Drop rows where Open, Close, High,  or Low == 0
+    df2 = df[(df[['Open', 'Close', 'High', 'Low']] != 0).all(axis=1)]
+    df = df2.copy() # Copying the dataframe to avoid the SettingWithCopyWarning
 
     ## Feature Engineering using TA Library
     #import ta library
@@ -143,7 +242,7 @@ def featureEngineering(df):
     
     return df
 
-def newLSTM (df, target = 'Close', window = 20, train_split = 0.8):
+def runLSTM (df, target = 'Close', window = 20, train_split = 0.8, predict = '1D'):
 
     # Import libraries
     import pandas as pd
@@ -208,15 +307,6 @@ def newLSTM (df, target = 'Close', window = 20, train_split = 0.8):
 
             y.append(data[i + n_steps, -1] / CentralValue) # Putting the next row's target value into y
 
-        # #replace NANs with 0
-        # X = np.nan_to_num(X)
-        # y = np.nan_to_num(y)
-        
-        # #replace inf with 0
-        # from numpy import inf
-        # X[X==inf]=0
-        # X[X==-inf]=0
-
         return np.array(X), np.array(y)
 
     # Call the function to format the data for the LSTM
@@ -259,7 +349,7 @@ def newLSTM (df, target = 'Close', window = 20, train_split = 0.8):
 
         from keras.models import load_model
 
-        lstm = load_model('../models/LSTM_' + ticker + '_' + target + '.h5')
+        lstm = load_model('../models/' + predict + '/LSTM_' + ticker + '_' + target + '.h5')
         print('Model Loaded')
     
     except:
@@ -280,7 +370,7 @@ def newLSTM (df, target = 'Close', window = 20, train_split = 0.8):
         lstm.fit(X_train, y_train, epochs=25, batch_size=5, verbose=1, shuffle=False)
 
         # Save trained model
-        lstm.save('../models/LSTM_' + ticker + '_' + target + '.h5')      
+        lstm.save('../models/' + predict + '/LSTM_' + ticker + '_' + target + '.h5')      
 
     # Test model
     y_pred = lstm.predict(X_test)
@@ -323,7 +413,7 @@ def addFuturePredictions(Predictions, pred, rmse, target, symbol):
 
     return Predictions
 
-def getPredictions(df):
+def getPredictions(df, Predict = '1D'):
     import pandas as pd
 
     Predictions = pd.DataFrame()
@@ -334,31 +424,31 @@ def getPredictions(df):
 
     # Predict Close
     print('Predicting Close...')
-    true, test, pred, rmse = newLSTM(df, target = 'Close', window = 20, train_split = 0.8)
+    true, test, pred, rmse = runLSTM(df, target = 'Close', window = 20, train_split = 0.8, predict = Predict)
     Close = addPredictions(len(df), true, test, rmse, 'Close')
     Predictions = addFuturePredictions(Predictions, pred, rmse, 'Close', symbol)
     
     # Predict High
     print('Predicting High...')
-    true, test, pred, rmse = newLSTM(df, target = 'High', window = 20, train_split = 0.8)
+    true, test, pred, rmse = runLSTM(df, target = 'High', window = 20, train_split = 0.8, predict = Predict)
     High = addPredictions(len(df), true, test, rmse, 'High')
     Predictions = addFuturePredictions(Predictions, pred, rmse, 'High', symbol)
 
     # Predict Low
     print('Predicting Low...')
-    true, test, pred, rmse = newLSTM(df, target = 'Low', window = 20, train_split = 0.8)
+    true, test, pred, rmse = runLSTM(df, target = 'Low', window = 20, train_split = 0.8, predict = Predict)
     Low = addPredictions(len(df), true, test, pred, 'Low')
     Predictions = addFuturePredictions(Predictions, pred, rmse, 'Low', symbol)
     
     # Predict Open
     print('Predicting Open...')
-    true, test, pred, rmse = newLSTM(df, target = 'Open', window = 20, train_split = 0.8)
+    true, test, pred, rmse = runLSTM(df, target = 'Open', window = 20, train_split = 0.8, predict = Predict)
     Open = addPredictions(len(df), true, test, pred, 'Open')
     Predictions = addFuturePredictions(Predictions, pred, rmse, 'Open', symbol)
 
     # Predict Median_Price
     print('Predicting Median Price...')
-    true, test, pred, rmse = newLSTM(df, target = 'Median_Price', window = 20, train_split = 0.8)
+    true, test, pred, rmse = runLSTM(df, target = 'Median_Price', window = 20, train_split = 0.8, predict = Predict)
     Median = addPredictions(len(df), true, test, pred, 'Median_Price')
     Predictions = addFuturePredictions(Predictions, pred, rmse, 'Median_Price', symbol)
 
