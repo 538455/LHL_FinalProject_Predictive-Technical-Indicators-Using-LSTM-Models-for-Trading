@@ -44,22 +44,33 @@ def dailyPrediction(ticker, accuracyPlot = True):
 
     # Print the accuracy and keep only one decimal
     print()
-    print("Success rate:", round(sold / bought * 100, 2), "%")
 
+    TestLen = len(Ticker_D_Pred[Ticker_D_Pred['Predicted_Profit'].notna()]) / 365
+    print("General Performance - Last ~", round(TestLen, 1) ,"year(s):")
+
+    # Ticker_D_Pred['profit'] = Ticker_D_Pred['profit'] / 100 # Divide profit by 100 for Profit Readability
+    print("Profit:", round(Ticker_D_Pred['profit'].sum(), 2), "%               Yearly avg.: ", round(Ticker_D_Pred['profit'].sum() / TestLen, 2), "%")
+    # Ticker_D_Pred['profit'] = Ticker_D_Pred['profit'] * 100 # Multiply profit by 100 to get it back to original value
+    
+    print("# Transactions:", len(Ticker_D_Pred.loc[Ticker_D_Pred['bought'] == 1]), "          Yearl avg: ", round(len(Ticker_D_Pred.loc[Ticker_D_Pred['bought'] == 1]) / TestLen, 2))
+
+    print("Success rate:", round(sold / bought * 100, 2), "%")
+    
     # Print the sum of profit
-    print('Daily Average: ', round((Ticker_D_Pred[(Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 1)]['profit'].mean() * 100) - 100, 2), "%")
+    print('Daily Average when successful: ', round(Ticker_D_Pred[(Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 1)]['profit'].mean(), 2) , "%")
+    print('Daily Average when unsuccessful: ', round(Ticker_D_Pred[(Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 0)]['profit'].mean(), 2) , "%")
 
     print()
     # Print the number of rows where Ticker_D_Pred['bought'] == 1 & sold == 0 & profit > 1
-    missed = len(Ticker_D_Pred[(Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 0)])
-    loss = len(Ticker_D_Pred[(Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 0) & (Ticker_D_Pred['profit'] < 1)])
-    gain = len(Ticker_D_Pred[(Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 0) & (Ticker_D_Pred['profit'] > 1)])
+    # missed = len(Ticker_D_Pred[(Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 0)])
+    # loss = len(Ticker_D_Pred[(Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 0) & (Ticker_D_Pred['profit'] < 1)])
+    # gain = len(Ticker_D_Pred[(Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 0) & (Ticker_D_Pred['profit'] > 1)])
 
-    print('When Missed:')
-    print('Take a loss: ', round(loss / missed * 100), "% of the time...     ", 'Average loss: ', round((Ticker_D_Pred[(Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 0) & (Ticker_D_Pred['profit'] < 1)]['profit'].mean() * 100) - 100, 2), "%")
-    print('Make a gain: ', round(gain / missed * 100), "% of the time...     ", 'Average gain: ', round((Ticker_D_Pred[(Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 0) & (Ticker_D_Pred['profit'] >= 1)]['profit'].mean() * 100) - 100, 2), "%")
+    # print('When Missed:')
+    # print('Take a loss: ', round(loss / missed * 100), "% of the time...     ", 'Average loss: ', round((Ticker_D_Pred[(Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 0) & (Ticker_D_Pred['profit'] < 1)]['profit'].mean())), "%")
+    # print('Make a gain: ', round(gain / missed * 100), "% of the time...     ", 'Average gain: ', round((Ticker_D_Pred[(Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 0) & (Ticker_D_Pred['profit'] >= 1)]['profit'].mean())), "%")
 
-    print()
+    # print()
     # print("Total historical profit:", round(Ticker_D_Pred['profit'].sum()), "%")
 
     #Make a copy of Ticker_D_Pred
@@ -69,13 +80,24 @@ def dailyPrediction(ticker, accuracyPlot = True):
     # rename the index column to Date and format it to datetime
     Ticker_D_Pred_copy.rename(columns={'index': 'Date'}, inplace=True)
     Ticker_D_Pred_copy['Date'] = pd.to_datetime(Ticker_D_Pred_copy['Date'])
-
     #Filter Date to only include year 2022
     Ticker_D_Pred_copy = Ticker_D_Pred_copy[Ticker_D_Pred_copy['Date'].dt.year == 2022]
     
-    #print the sum of profit
-    print("2022 profit:", round(Ticker_D_Pred_copy['profit'].sum()), "%")
+    print("2022 Performance:")
+    
+    # Ticker_D_Pred_copy['profit'] = Ticker_D_Pred_copy['profit'] / 100 # Divide profit by 100 for Profit Readability
+    print("Profit:", round(Ticker_D_Pred_copy['profit'].sum(), 2), "%")
+    # Ticker_D_Pred_copy['profit'] = Ticker_D_Pred_copy['profit'] * 100 # Multiply profit by 100 to get it back to original value
+
     print("# Transactions:", len(Ticker_D_Pred_copy.loc[Ticker_D_Pred_copy['bought'] == 1]))
+
+    sold = len(Ticker_D_Pred_copy.loc[Ticker_D_Pred_copy['sold'] == 1])
+    bought = len(Ticker_D_Pred_copy.loc[Ticker_D_Pred_copy['bought'] == 1])
+    print("Success rate:", round(sold / bought * 100, 2), "%")
+
+    # Print the sum of profit
+    print('Daily Average when successful: ', round(Ticker_D_Pred_copy[(Ticker_D_Pred_copy['bought'] == 1) & (Ticker_D_Pred_copy['sold'] == 1)]['profit'].mean(), 2) , "%")
+    print('Daily Average when unsuccessful: ', round(Ticker_D_Pred_copy[(Ticker_D_Pred_copy['bought'] == 1) & (Ticker_D_Pred_copy['sold'] == 0)]['profit'].mean(), 2) , "%")
 
 
     return Ticker_D_Pred
@@ -86,20 +108,34 @@ def addInvestmentcols(Ticker_D_Pred):
 
     # RMSE = High_RMSE's last value
     RMSE = 1 - (Ticker_D_Pred['High_RMSE'].iloc[-1] * 0) # In the end, it rem
-    MinPredProfit = 1
+    MinPredProfit = .25
 
     # LimitBuy = Low_Predictions
     # LimitSell = High_Predictions - RMSE
     # StopLoss = Low_Predictions * 0.97
 
     # Create a new column in Ticker_D_Pred called Predicted_Profit and set it to 1 if Low_Predictions > (High_Predictions * 1.03) and 0 otherwise
-    Ticker_D_Pred['Predicted_Profit'] = (Ticker_D_Pred['High_Predictions'] * RMSE) / Ticker_D_Pred['Open_Predictions']
+    # Ticker_D_Pred['Predicted_Profit'] = (1 - (Ticker_D_Pred['High_Predictions'] * RMSE) / Ticker_D_Pred['Open_Predictions'] ) * 100 #backup.. I think that's a mistake
+    Ticker_D_Pred['Predicted_Profit'] = (Ticker_D_Pred['High_Predictions'] * RMSE) / Ticker_D_Pred['Open_Predictions'] * 100 - 100
 
     # Create a new column in Ticker_D_P
-    Ticker_D_Pred['True_Profit'] = Ticker_D_Pred['High_True'] / Ticker_D_Pred['Open_True']
+    # Ticker_D_Pred['True_Profit'] = (1 - (Ticker_D_Pred['High_True'] / Ticker_D_Pred['Open_True']) ) * 100 #backup.. I think that's a mistake
+    Ticker_D_Pred['True_Profit'] = (Ticker_D_Pred['High_True'] / Ticker_D_Pred['Open_True']) * 100 - 100
 
     # Create a new column in Ticker_D_Pred called bought and set it to 1 if Predicted_Profit > 1, Low_Predictions > Low_True and 0 otherwise
     Ticker_D_Pred['bought'] = np.where((Ticker_D_Pred['Predicted_Profit'] > MinPredProfit) & (Ticker_D_Pred['Open_Predictions'] > Ticker_D_Pred['Open_True']), 1, 0)
+
+    #=====================================================================================================================================================================
+    # I found some volatile situations where the models usually don't profit well, so I'm going to remove them.
+    # Ticker_D_Pred['bought'] = np.where((Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['Open_Predictions'] < Ticker_D_Pred['Close_True'].shift(1)), 0, Ticker_D_Pred['bought']) # Indicative of a downward trend and model is likely predicting a deadcat bounce.
+    Ticker_D_Pred['bought'] = np.where((Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['Open_Predictions'] < Ticker_D_Pred['Low_True'].shift(1)), 0, Ticker_D_Pred['bought']) # Indicative of a downward trend and model is likely predicting a deadcat bounce. 
+    # Ticker_D_Pred['bought'] = np.where((Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['Median_Price_Predictions'] < Ticker_D_Pred['Open_Predictions']), 0, Ticker_D_Pred['bought']) # Model is predicting that there is more downside than upside. If I miss the High, there's a high chance to lose significantly.
+    # Ticker_D_Pred['bought'] = np.where((Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['Close_Predictions'] > Ticker_D_Pred['High_Predictions']), 0, Ticker_D_Pred['bought']) # This is an impossible scenario. If the model predicts that the close will be higher than the high, it's likely a very volatile situation.
+    # Ticker_D_Pred['bought'] = np.where((Ticker_D_Pred['bought'] == 1) & (abs(Ticker_D_Pred['Median_Price_Predictions'] - Ticker_D_Pred['Low_Predictions']) < abs(Ticker_D_Pred['Median_Price_Predictions'] - Ticker_D_Pred['High_Predictions'])), 0, Ticker_D_Pred['bought']) # Could be considered a bearsish signal as average profit is lower in those situations.
+    #=====================================================================================================================================================================
+
+    # Create PrevDayAccuracyClose
+    SBB['Prev_Day_Accuracy_Close'] = SBB['Close_True'] / SBB['Close_Predictions'] *100 - 100
 
     # Create a new column in Ticker_D_Pred called sold and set it to 1 if bought == 1 and High_Predictions < High_True and 0 otherwise
     Ticker_D_Pred['sold'] = np.where((Ticker_D_Pred['bought'] == 1) & ((Ticker_D_Pred['High_Predictions'] * RMSE) < Ticker_D_Pred['High_True']), 1, 0)
@@ -108,7 +144,11 @@ def addInvestmentcols(Ticker_D_Pred):
     # If bought == 1 and sold == 1, set it to High_Predictions - Low_Predictions
     # If bought == 1 and sold == 0, set it to Close_True - Low_Predictions
     # If bought == 0 and sold == 0, set it to 0
-    Ticker_D_Pred['profit'] = np.where((Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 1), (Ticker_D_Pred['High_Predictions'] * RMSE) / Ticker_D_Pred['Open_Predictions'], np.where((Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 0), Ticker_D_Pred['Close_True'] / Ticker_D_Pred['Open_Predictions'], 0))
+    # Ticker_D_Pred['profit'] = np.where((Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 1), (Ticker_D_Pred['High_Predictions'] * RMSE) / Ticker_D_Pred['Open_Predictions'], np.where((Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 0), Ticker_D_Pred['Close_True'] / Ticker_D_Pred['Open_Predictions'], 0))
+    Ticker_D_Pred['profit'] = np.where((Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 1), (Ticker_D_Pred['High_Predictions'] * RMSE) / Ticker_D_Pred['Open_True'], np.where((Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 0), Ticker_D_Pred['Close_True'] / Ticker_D_Pred['Open_True'], 0))
+    
+    # Where profit is not 0, subtract * 100 and subtract 100
+    Ticker_D_Pred['profit'] = round(np.where(Ticker_D_Pred['profit'] != 0, Ticker_D_Pred['profit'] * 100 - 100, 0),2)
 
     # Add stoploss. In profit, if value is between 0.01 and 0.97, set it to 0.97
     # Ticker_D_Pred['profit'] = np.where((Ticker_D_Pred['profit'] > 0.01) & (Ticker_D_Pred['profit'] < 0.97), 0.97, Ticker_D_Pred['profit'])
