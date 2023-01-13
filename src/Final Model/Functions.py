@@ -6,10 +6,12 @@ def dailyPrediction(ticker):
     Ticker = getTicker_daily(ticker)
 
     # Save a copy of Ticker (backup if library is not working)
-    Ticker.reset_index(inplace=True)
-    Ticker.to_csv('../../data/1D/' + ticker + '.csv', index=False)
-
-    Ticker = pd.read_csv('../../data/1D/' + ticker + '.csv', index_col=0)
+    if len(Ticker > 1):
+        Ticker.reset_index(inplace=True)
+        Ticker.to_csv('../../data/1D/' + ticker + '.csv', index=False)
+    else:
+        # Ticker = pd.read_csv('../../data/1D/' + ticker + '.csv', index_col=0) # If the library is not working, use the saved copy
+        raise ValueError(ticker, 'is empty... There could to be an issue with the library')
 
     # Feature Engineering
     # from Functions import featureEngineering
@@ -54,6 +56,7 @@ def formatPrediction(historicalPerformance, buyMargin, sellMargin):
     Recommendation['buyPrice'] = round(Recommendation['Open_Predictions'] * buyMargin,2)
     Recommendation['sellPrice'] = round(Recommendation['High_Predictions'] * sellMargin, 2)
     Recommendation = Recommendation[['Predicted_Profit', 'buyPrice', 'sellPrice']]
+    Prediction = Prediction.drop(['Predicted_Profit'], axis=1)
     Prediction = pd.concat([Recommendation, Prediction], axis=1)
 
     ## Add Length of test data
@@ -78,7 +81,10 @@ def formatPrediction(historicalPerformance, buyMargin, sellMargin):
     Prediction['avgTransactions(yr)'] = round(len(historicalPerformance.loc[historicalPerformance['bought'] == 1]) / TestLen, 2)
 
     # Add successRate to the Prediction dataframe
-    Prediction['successRate(%)'] = round(sold / bought * 100, 2)
+    if bought == 0:
+        Prediction['successRate(%)'] = 0
+    else:
+        Prediction['successRate(%)'] = round(sold / bought * 100, 2)
 
     # Add avgProfitWhenSuccessful to the Prediction dataframe
     Prediction['avgProfit_Successful(%)'] = round(historicalPerformance[(historicalPerformance['bought'] == 1) & (historicalPerformance['sold'] == 1)]['profit'].mean(), 2)
@@ -101,7 +107,10 @@ def formatPrediction(historicalPerformance, buyMargin, sellMargin):
     Prediction['transactions2022'] = len(historicalPerformance_copy.loc[historicalPerformance_copy['bought'] == 1])
 
     # Add successRate2022 to the Prediction dataframe
-    Prediction['successRate2022(%)'] = round(len(historicalPerformance_copy.loc[historicalPerformance_copy['sold'] == 1]) / len(historicalPerformance_copy.loc[historicalPerformance_copy['bought'] == 1]) * 100, 2)
+    if len(historicalPerformance_copy.loc[historicalPerformance_copy['bought'] == 1]) == 0:
+        Prediction['successRate2022(%)'] = 0
+    else:
+        Prediction['successRate2022(%)'] = round(len(historicalPerformance_copy.loc[historicalPerformance_copy['sold'] == 1]) / len(historicalPerformance_copy.loc[historicalPerformance_copy['bought'] == 1]) * 100, 2)
 
     # Add avgProfit_Successful2022 to the Prediction dataframe
     Prediction['avgProfit_Successful2022(%)'] = round(historicalPerformance_copy[(historicalPerformance_copy['bought'] == 1) & (historicalPerformance_copy['sold'] == 1)]['profit'].mean(), 2)
@@ -497,6 +506,38 @@ def runLSTM (df, target = 'Close', window = 20, train_split = 0.8, predict = '1D
 
         lstm = load_model('../models/' + predict + '/LSTM_' + ticker + '_' + target + '.h5')
         print('Model Loaded')
+
+        # Because we have an already trained model, we will not be training all of the data. Rather, we will be training the data that we have not trained yet.
+        
+        # Load previous split_idx value
+        import pickle
+        filename = '../models/' + predict + '/split_idx_' + ticker + '_' + target + '.pkl'
+
+        with filename as f:
+            split_idx_old = pickle.load(f)
+        
+        # By comparing the split_idx_old and split_idx, we can determine the rows that we have not trained yet.
+        if split_idx_old == split_idx:
+            
+            continue # no need to retrain the model
+        
+        else:
+            X_train = X1[split_idx_old:split_idx]
+            y_train = y1[split_idx_old:split_idx]
+            X_train_date = date_index[split_idx_old:split_idx]
+
+            # Train the model
+            lstm.fit(X_train, y_train, epochs=100, batch_size=5, verbose=1, shuffle=False)
+
+            # Save trained model
+            lstm.save('../models/' + predict + '/LSTM_' + ticker + '_' + target + '.h5')
+
+            # Save the value of split_idx in a pickle file
+            import pickle
+            filename = '../models/' + predict + '/split_idx_' + ticker + '_' + target + '.pkl'
+            with filename as f:
+                pickle.dump(split_idx, f)
+
     
     except:
     
@@ -516,7 +557,13 @@ def runLSTM (df, target = 'Close', window = 20, train_split = 0.8, predict = '1D
         lstm.fit(X_train, y_train, epochs=100, batch_size=5, verbose=1, shuffle=False)
 
         # Save trained model
-        lstm.save('../models/' + predict + '/LSTM_' + ticker + '_' + target + '.h5')      
+        lstm.save('../models/' + predict + '/LSTM_' + ticker + '_' + target + '.h5')
+        
+        # Save the value of split_idx in a pickle file
+        import pickle
+        filename = '../models/' + predict + '/split_idx_' + ticker + '_' + target + '.pkl'
+        with filename as f:
+            pickle.dump(split_idx, f)      
 
     # Test model
     y_pred = lstm.predict(X_test, verbose=0)
