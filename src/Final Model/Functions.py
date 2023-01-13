@@ -106,9 +106,10 @@ def addInvestmentcols(Ticker_D_Pred):
     import pandas as pd
     import numpy as np
 
-    # RMSE = High_RMSE's last value
-    RMSE = 1 - (Ticker_D_Pred['High_RMSE'].iloc[-1] * 0) # In the end, it rem
-    MinPredProfit = .25
+    RMSE = .985
+    RMSE2 = 1.05
+    # RMSE = 1 - (Ticker_D_Pred['High_RMSE'].iloc[-1] * 0) # In the end, it rem
+    MinPredProfit = 3.5
 
     # LimitBuy = Low_Predictions
     # LimitSell = High_Predictions - RMSE
@@ -116,26 +117,26 @@ def addInvestmentcols(Ticker_D_Pred):
 
     # Create a new column in Ticker_D_Pred called Predicted_Profit and set it to 1 if Low_Predictions > (High_Predictions * 1.03) and 0 otherwise
     # Ticker_D_Pred['Predicted_Profit'] = (1 - (Ticker_D_Pred['High_Predictions'] * RMSE) / Ticker_D_Pred['Open_Predictions'] ) * 100 #backup.. I think that's a mistake
-    Ticker_D_Pred['Predicted_Profit'] = (Ticker_D_Pred['High_Predictions'] * RMSE) / Ticker_D_Pred['Open_Predictions'] * 100 - 100
+    Ticker_D_Pred['Predicted_Profit'] = (Ticker_D_Pred['High_Predictions']) / (Ticker_D_Pred['Open_Predictions']) * 100 - 100
 
     # Create a new column in Ticker_D_P
     # Ticker_D_Pred['True_Profit'] = (1 - (Ticker_D_Pred['High_True'] / Ticker_D_Pred['Open_True']) ) * 100 #backup.. I think that's a mistake
     Ticker_D_Pred['True_Profit'] = (Ticker_D_Pred['High_True'] / Ticker_D_Pred['Open_True']) * 100 - 100
 
     # Create a new column in Ticker_D_Pred called bought and set it to 1 if Predicted_Profit > 1, Low_Predictions > Low_True and 0 otherwise
-    Ticker_D_Pred['bought'] = np.where((Ticker_D_Pred['Predicted_Profit'] > MinPredProfit) & (Ticker_D_Pred['Open_Predictions'] > Ticker_D_Pred['Open_True']), 1, 0)
+    Ticker_D_Pred['bought'] = np.where((Ticker_D_Pred['Predicted_Profit'] > MinPredProfit) & ((Ticker_D_Pred['Open_Predictions'] * (RMSE2)) > Ticker_D_Pred['Open_True']), 1, 0)
 
     #=====================================================================================================================================================================
     # I found some volatile situations where the models usually don't profit well, so I'm going to remove them.
     # Ticker_D_Pred['bought'] = np.where((Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['Open_Predictions'] < Ticker_D_Pred['Close_True'].shift(1)), 0, Ticker_D_Pred['bought']) # Indicative of a downward trend and model is likely predicting a deadcat bounce.
-    Ticker_D_Pred['bought'] = np.where((Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['Open_Predictions'] < Ticker_D_Pred['Low_True'].shift(1)), 0, Ticker_D_Pred['bought']) # Indicative of a downward trend and model is likely predicting a deadcat bounce. 
+    # Ticker_D_Pred['bought'] = np.where((Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['Open_Predictions'] < Ticker_D_Pred['Low_True'].shift(1)), 0, Ticker_D_Pred['bought']) # Indicative of a downward trend and model is likely predicting a deadcat bounce. 
     # Ticker_D_Pred['bought'] = np.where((Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['Median_Price_Predictions'] < Ticker_D_Pred['Open_Predictions']), 0, Ticker_D_Pred['bought']) # Model is predicting that there is more downside than upside. If I miss the High, there's a high chance to lose significantly.
     # Ticker_D_Pred['bought'] = np.where((Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['Close_Predictions'] > Ticker_D_Pred['High_Predictions']), 0, Ticker_D_Pred['bought']) # This is an impossible scenario. If the model predicts that the close will be higher than the high, it's likely a very volatile situation.
     # Ticker_D_Pred['bought'] = np.where((Ticker_D_Pred['bought'] == 1) & (abs(Ticker_D_Pred['Median_Price_Predictions'] - Ticker_D_Pred['Low_Predictions']) < abs(Ticker_D_Pred['Median_Price_Predictions'] - Ticker_D_Pred['High_Predictions'])), 0, Ticker_D_Pred['bought']) # Could be considered a bearsish signal as average profit is lower in those situations.
     #=====================================================================================================================================================================
 
     # Create PrevDayAccuracyClose
-    SBB['Prev_Day_Accuracy_Close'] = SBB['Close_True'] / SBB['Close_Predictions'] *100 - 100
+    # SBB['Prev_Day_Accuracy_Close'] = SBB['Close_True'] / SBB['Close_Predictions'] *100 - 100
 
     # Create a new column in Ticker_D_Pred called sold and set it to 1 if bought == 1 and High_Predictions < High_True and 0 otherwise
     Ticker_D_Pred['sold'] = np.where((Ticker_D_Pred['bought'] == 1) & ((Ticker_D_Pred['High_Predictions'] * RMSE) < Ticker_D_Pred['High_True']), 1, 0)
@@ -145,10 +146,10 @@ def addInvestmentcols(Ticker_D_Pred):
     # If bought == 1 and sold == 0, set it to Close_True - Low_Predictions
     # If bought == 0 and sold == 0, set it to 0
     # Ticker_D_Pred['profit'] = np.where((Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 1), (Ticker_D_Pred['High_Predictions'] * RMSE) / Ticker_D_Pred['Open_Predictions'], np.where((Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 0), Ticker_D_Pred['Close_True'] / Ticker_D_Pred['Open_Predictions'], 0))
-    Ticker_D_Pred['profit'] = np.where((Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 1), (Ticker_D_Pred['High_Predictions'] * RMSE) / Ticker_D_Pred['Open_True'], np.where((Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 0), Ticker_D_Pred['Close_True'] / Ticker_D_Pred['Open_True'], 0))
+    Ticker_D_Pred['profit'] = np.where((Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 1), (Ticker_D_Pred['High_Predictions'] * RMSE) / Ticker_D_Pred['Open_True'] * 100 -100, np.where((Ticker_D_Pred['bought'] == 1) & (Ticker_D_Pred['sold'] == 0), (Ticker_D_Pred['Close_True'] / Ticker_D_Pred['Open_True'] * 100 - 100), 0))
     
     # Where profit is not 0, subtract * 100 and subtract 100
-    Ticker_D_Pred['profit'] = round(np.where(Ticker_D_Pred['profit'] != 0, Ticker_D_Pred['profit'] * 100 - 100, 0),2)
+    # Ticker_D_Pred['profit'] = np.where(Ticker_D_Pred['profit'] != 0, Ticker_D_Pred['profit'] * 100 - 100, 0)
 
     # Add stoploss. In profit, if value is between 0.01 and 0.97, set it to 0.97
     # Ticker_D_Pred['profit'] = np.where((Ticker_D_Pred['profit'] > 0.01) & (Ticker_D_Pred['profit'] < 0.97), 0.97, Ticker_D_Pred['profit'])
