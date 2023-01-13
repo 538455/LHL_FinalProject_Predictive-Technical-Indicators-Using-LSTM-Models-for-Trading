@@ -1,3 +1,69 @@
+def refreshPredictions():
+    import pandas as pd
+    
+    # Import tickerList
+    import pickle
+    with open('../../data/tickerList.pickle', 'rb') as f:
+        tickerList = pickle.load(f)
+
+    # Import wishlist
+    wishlist = []
+    with open('../../data/wishlist.txt') as f:
+        for line in f:
+            wishlist.append(line.strip())
+
+    # Create an empty dataframe called Predictions
+    Predictions = pd.DataFrame()
+
+    # ==================================================================================================
+
+    # Refresh the historical performance and prediction for each ticker
+    
+    # from Functions import dailyPrediction
+    for ticker in tickerList:
+        historicalPerformance, prediction = dailyPrediction(ticker)
+
+        # Save the historical performance to a csv file
+        historicalPerformance.to_csv('../../data/historicalPerformance/' + ticker + '.csv')
+
+        # Append prediction as a new row to the Predictions dataframe using pd.concat
+        Predictions = pd.concat([Predictions, prediction])
+
+    # Order the Predictions dataframe by the prediction
+    # Predictions = Predictions.sort_values(by='Predicted_Profit', ascending=False)
+
+    # Save the Predictions dataframe to a csv file add the date to the file name
+    import datetime
+    Predictions.to_csv('../../data/Predictions/' + str(datetime.date.today()) + '_1D_Predictions.csv')
+    Predictions.to_csv('Z:/+StockPredictions/' + str(datetime.date.today()) + '_1D_Predictions.csv')
+
+    #==================================================================================================
+
+    # Now that the predictions have been made, we will train 2x tickers from the wishlist and add them to the tickerList
+    for i in range(8):
+        # Select the first ticker from the wishlist
+        ticker = wishlist[0]
+
+        # Train the ticker
+        historicalPerformance, prediction = dailyPrediction(ticker)
+
+        #==================================================================================================
+        # We're not going to save the historical performance to a csv file because it will not be delivered in a timely manner. Predictions will be available starting the next day.
+        #==================================================================================================
+
+        # Update wishlist and tickerList
+        wishlist.remove(ticker)
+        tickerList.append(ticker)
+
+    # Update the wishlist txt file
+    with open('../../data/wishlist.txt', 'w') as f:
+        for item in wishlist:
+            f.write("%s\r" % item)
+
+        # Update the tickerList pickle file
+        with open('../../data/tickerList.pickle', 'wb') as f:
+            pickle.dump(tickerList, f)
+
 def dailyPrediction(ticker):
     import pandas as pd
 
@@ -6,12 +72,12 @@ def dailyPrediction(ticker):
     Ticker = getTicker_daily(ticker)
 
     # Save a copy of Ticker (backup if library is not working)
-    if len(Ticker > 1):
-        Ticker.reset_index(inplace=True)
-        Ticker.to_csv('../../data/1D/' + ticker + '.csv', index=False)
-    else:
-        # Ticker = pd.read_csv('../../data/1D/' + ticker + '.csv', index_col=0) # If the library is not working, use the saved copy
-        raise ValueError(ticker, 'is empty... There could to be an issue with the library')
+    # if len(Ticker > 1):
+    #     Ticker.reset_index(inplace=True)
+    #     Ticker.to_csv('../../data/1D/' + ticker + '.csv', index=False)
+    # else:
+    #     # Ticker = pd.read_csv('../../data/1D/' + ticker + '.csv', index_col=0) # If the library is not working, use the saved copy
+    #     raise ValueError(ticker, 'is empty... There could to be an issue with the yfinance library')
 
     # Feature Engineering
     # from Functions import featureEngineering
@@ -517,11 +583,8 @@ def runLSTM (df, target = 'Close', window = 20, train_split = 0.8, predict = '1D
             split_idx_old = pickle.load(f)
         
         # By comparing the split_idx_old and split_idx, we can determine the rows that we have not trained yet.
-        if split_idx_old == split_idx:
-            
-            continue # no need to retrain the model
-        
-        else:
+        if split_idx_old != split_idx:
+
             X_train = X1[split_idx_old:split_idx]
             y_train = y1[split_idx_old:split_idx]
             X_train_date = date_index[split_idx_old:split_idx]
