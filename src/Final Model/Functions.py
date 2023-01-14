@@ -1,10 +1,11 @@
 def refreshPredictions():
     import pandas as pd
     
-    # Import tickerList
-    import pickle
-    with open('../../data/tickerList.pickle', 'rb') as f:
-        tickerList = pickle.load(f)
+    # Import
+    tickerList = []
+    with open('../../data/tickerList.txt') as f:
+        for line in f:
+            tickerList.append(line.strip())
 
     # Import wishlist
     wishlist = []
@@ -20,6 +21,7 @@ def refreshPredictions():
     # Refresh the historical performance and prediction for each ticker
     
     # from Functions import dailyPrediction
+    #loop thru tickerList
     for ticker in tickerList:
         historicalPerformance, prediction = dailyPrediction(ticker)
 
@@ -60,9 +62,11 @@ def refreshPredictions():
         for item in wishlist:
             f.write("%s\r" % item)
 
-        # Update the tickerList pickle file
-        with open('../../data/tickerList.pickle', 'wb') as f:
-            pickle.dump(tickerList, f)
+    # Update the tickerList txt file
+    with open('../../data/tickerList.txt', 'w') as f:
+        for item in tickerList:
+            f.write("%s\r" % item)
+
 
 def dailyPrediction(ticker):
     import pandas as pd
@@ -576,11 +580,11 @@ def runLSTM (df, target = 'Close', window = 20, train_split = 0.8, predict = '1D
         # Because we have an already trained model, we will not be training all of the data. Rather, we will be training the data that we have not trained yet.
         
         # Load previous split_idx value
-        import pickle
-        filename = '../models/' + predict + '/split_idx_' + ticker + '_' + target + '.pkl'
+        filename = '../models/' + predict + '/split_idx_' + ticker + '_' + target + '.txt'
 
-        with filename as f:
-            split_idx_old = pickle.load(f)
+        # Open txt file and read the value of split_idx
+        with open(filename, 'r') as f:
+            split_idx_old = int(f.read())
         
         # By comparing the split_idx_old and split_idx, we can determine the rows that we have not trained yet.
         if split_idx_old != split_idx:
@@ -595,11 +599,9 @@ def runLSTM (df, target = 'Close', window = 20, train_split = 0.8, predict = '1D
             # Save trained model
             lstm.save('../models/' + predict + '/LSTM_' + ticker + '_' + target + '.h5')
 
-            # Save the value of split_idx in a pickle file
-            import pickle
-            filename = '../models/' + predict + '/split_idx_' + ticker + '_' + target + '.pkl'
-            with filename as f:
-                pickle.dump(split_idx, f)
+            # Save the value of split_idx in a txt file, if it does not exist, create it
+            with open(filename, 'w') as f:
+                f.write(str(split_idx))
 
     
     except:
@@ -622,11 +624,11 @@ def runLSTM (df, target = 'Close', window = 20, train_split = 0.8, predict = '1D
         # Save trained model
         lstm.save('../models/' + predict + '/LSTM_' + ticker + '_' + target + '.h5')
         
-        # Save the value of split_idx in a pickle file
-        import pickle
-        filename = '../models/' + predict + '/split_idx_' + ticker + '_' + target + '.pkl'
-        with filename as f:
-            pickle.dump(split_idx, f)      
+        # Save the value of split_idx in a txt file, if it does not exist, create it
+        filename = '../models/' + predict + '/split_idx_' + ticker + '_' + target + '.txt'
+
+        with open(filename, 'w') as f:
+            f.write(str(split_idx))     
 
     # Test model
     y_pred = lstm.predict(X_test, verbose=0)
