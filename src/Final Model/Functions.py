@@ -1,7 +1,7 @@
 def refreshPredictions():
     import pandas as pd
     
-    # Import
+    # Import tickerList
     tickerList = []
     with open('../../data/tickerList.txt') as f:
         for line in f:
@@ -32,7 +32,7 @@ def refreshPredictions():
         Predictions = pd.concat([Predictions, prediction])
 
     # Order the Predictions dataframe by the prediction
-    # Predictions = Predictions.sort_values(by='Predicted_Profit', ascending=False)
+    Predictions = Predictions.sort_values(by='Predicted_Profit', ascending=False)
 
     # Save the Predictions dataframe to a csv file add the date to the file name
     import datetime
@@ -42,20 +42,24 @@ def refreshPredictions():
     #==================================================================================================
 
     # Now that the predictions have been made, we will train 2x tickers from the wishlist and add them to the tickerList
-    for i in range(8):
-        # Select the first ticker from the wishlist
-        ticker = wishlist[0]
+    for i in range(2):
+        # Select the first ticker from the wishlist, on error, exit the loop
+        try:
+            ticker = wishlist[0]
 
-        # Train the ticker
-        historicalPerformance, prediction = dailyPrediction(ticker)
+            # Train the ticker
+            historicalPerformance, prediction = dailyPrediction(ticker)
 
-        #==================================================================================================
-        # We're not going to save the historical performance to a csv file because it will not be delivered in a timely manner. Predictions will be available starting the next day.
-        #==================================================================================================
+            #==================================================================================================
+            # We're not going to save the historical performance to a csv file because it will not be delivered in a timely manner. Predictions will be available starting the next day.
+            #==================================================================================================
 
-        # Update wishlist and tickerList
-        wishlist.remove(ticker)
-        tickerList.append(ticker)
+            # Update wishlist and tickerList
+            wishlist.remove(ticker)
+            tickerList.append(ticker)
+        
+        except:
+            break
 
     # Update the wishlist txt file
     with open('../../data/wishlist.txt', 'w') as f:
