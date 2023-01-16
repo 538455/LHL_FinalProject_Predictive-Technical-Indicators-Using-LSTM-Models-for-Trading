@@ -36,27 +36,29 @@ def refreshPredictions():
 
     # Save the Predictions dataframe to a csv file add the date to the file name
     import datetime
-    Predictions.to_csv('../../data/Predictions/' + str(datetime.date.today()) + '_1D_Predictions.csv')
-    Predictions.to_csv('Z:/+StockPredictions/' + str(datetime.date.today()) + '_1D_Predictions.csv')
+    Predictions.to_csv('../../data/Predictions/' + str(datetime.date.today()) + '_1D_Predictions.csv') # Save to the local drive, used to archive predictions
+    Predictions.to_csv('Z:/+StockPredictions/Predictions.csv') # Save to the network drive, used to generate daily report
 
     #==================================================================================================
 
     # Now that the predictions have been made, we will train 2x tickers from the wishlist and add them to the tickerList
-    for i in range(2):
+    for i in range(15):
         # Select the first ticker from the wishlist, on error, exit the loop
         try:
             ticker = wishlist[0]
 
-            # Train the ticker
-            historicalPerformance, prediction = dailyPrediction(ticker)
+            if len(ticker) > 0:
 
-            #==================================================================================================
-            # We're not going to save the historical performance to a csv file because it will not be delivered in a timely manner. Predictions will be available starting the next day.
-            #==================================================================================================
+                # Train the ticker
+                historicalPerformance, prediction = dailyPrediction(ticker)
 
-            # Update wishlist and tickerList
-            wishlist.remove(ticker)
-            tickerList.append(ticker)
+                #==================================================================================================
+                # We're not going to save the historical performance to a csv file because it will not be delivered in a timely manner. Predictions will be available starting the next day.
+                #==================================================================================================
+
+                # Update wishlist and tickerList
+                wishlist.remove(ticker)
+                tickerList.append(ticker)
         
         except:
             break
@@ -642,6 +644,7 @@ def runLSTM (df, target = 'Close', window = 20, train_split = 0.8, predict = '1D
 
     # Calculate RMSE
     rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+    # print(rmse) #I remove the RMSE from the tables, but I will leave this here in case I want to use it in the future for testing
     
     return y_test, y_pred, y_pred_future, rmse
 
