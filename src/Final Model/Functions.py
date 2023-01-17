@@ -42,7 +42,7 @@ def refreshPredictions():
     #==================================================================================================
 
     # Now that the predictions have been made, we will train 2x tickers from the wishlist and add them to the tickerList
-    for i in range(15):
+    for i in range(2):
         # Select the first ticker from the wishlist, on error, exit the loop
         try:
             ticker = wishlist[0]
