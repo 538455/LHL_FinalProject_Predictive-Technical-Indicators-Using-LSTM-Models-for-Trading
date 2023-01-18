@@ -3,7 +3,7 @@
 This project was completed by:
 - Sébastien Garneau - GitHub: [538455](https://github.com/538455)
 
-For more details, I invite you to view my full presentation [here](presentation.pptx) or browse thru the code [here](src/Final Model/Functions.py).
+For more details, I invite you to view my full presentation [here](Presentation.pptx) or feel free to browse thru the code!
 
 ## Project / Goals
 The goal of this project was to build a predictive technical indicator for trading that would beat the performance of the S&P 500 index. The S&P 500 is a US index that features 500 leading companies and is often regarded as one of the best gauges of the stock market overall.
